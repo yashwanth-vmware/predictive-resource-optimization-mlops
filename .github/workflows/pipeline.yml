@@ -1,0 +1,123 @@
+name: Predictive Resource Optimization MLOps Pipeline
+
+on:
+  push:
+    branches: ["dev"]
+  workflow_dispatch:
+
+concurrency:
+  group: predictive-resource-optimization-mlops-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.10"
+
+jobs:
+  data_prep:
+    name: Data Prep (HF Dataset Hub)
+    runs-on: ubuntu-latest
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_DATASET_REPO_ID: ${{ vars.HF_DATASET_REPO_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+      - name: Install dependencies
+        run: |
+          python -m pip install -U pip
+          pip install pandas huggingface_hub
+      - name: Validate required env vars
+        run: |
+          python - <<'PY'
+          import os, sys
+          missing = [k for k in ["HF_TOKEN", "HF_DATASET_REPO_ID"] if not (os.getenv(k) or "").strip()]
+          if missing:
+              print("Missing env vars:", missing)
+              sys.exit(1)
+          print("Env vars present.")
+          PY
+      - name: Run data preparation (chronological split + upload)
+        run: |
+          python predictive_resource_optimization/model_building/prep.py
+
+  train:
+    name: Train + Track + Upload Model (HF Model Hub)
+    needs: data_prep
+    runs-on: ubuntu-latest
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_DATASET_REPO_ID: ${{ vars.HF_DATASET_REPO_ID }}
+      HF_MODEL_REPO_ID: ${{ vars.HF_MODEL_REPO_ID }}
+      MLFLOW_EXPERIMENT: Predictive_Resource_Optimization
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+      - name: Install dependencies
+        run: |
+          python -m pip install -U pip
+          pip install pandas scikit-learn huggingface_hub mlflow joblib numpy
+      - name: Validate required env vars
+        run: |
+          python - <<'PY'
+          import os, sys
+          required = ["HF_TOKEN", "HF_DATASET_REPO_ID", "HF_MODEL_REPO_ID"]
+          missing = [k for k in required if not (os.getenv(k) or "").strip()]
+          if missing:
+              print("Missing env vars:", missing)
+              sys.exit(1)
+          print("Env vars present.")
+          PY
+      - name: Train all 6 Random Forest models + log MLflow + upload to Model Hub
+        run: |
+          python predictive_resource_optimization/model_building/train.py
+
+  deploy:
+    name: Deploy App (optional HF Space; Streamlit Cloud needs no CI step)
+    needs: train
+    runs-on: ubuntu-latest
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_SPACE_ID: ${{ vars.HF_SPACE_ID }}
+      HF_MODEL_REPO_ID: ${{ vars.HF_MODEL_REPO_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+      - name: Install dependencies
+        run: |
+          python -m pip install -U pip
+          pip install huggingface_hub
+      - name: Sanity-check the Streamlit app files
+        run: |
+          python -m py_compile predictive_resource_optimization/deployment/app.py
+          test -f predictive_resource_optimization/deployment/requirements.txt
+          echo "app.py and requirements.txt look good."
+      # Only attempted if HF_SPACE_ID is configured as a repo variable (Section 1/7.1) --
+      # e.g. if you have Hugging Face PRO. continue-on-error so a PRO-plan limitation on
+      # the HF side never fails the whole pipeline.
+      - name: Deploy to HF Space (optional, only if HF_SPACE_ID is set)
+        if: ${{ env.HF_SPACE_ID != '' }}
+        continue-on-error: true
+        run: |
+          python predictive_resource_optimization/deploy_to_space.py
+      - name: Streamlit Community Cloud note
+        run: |
+          echo "If you deployed via Streamlit Community Cloud (share.streamlit.io, Section 5.6),"
+          echo "it auto-redeploys on every push to this branch once connected -- no CI action needed."
