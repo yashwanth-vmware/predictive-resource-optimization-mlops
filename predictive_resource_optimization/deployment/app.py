@@ -68,20 +68,20 @@ VM_PROFILES = {
     "VM 267 (critical)": {"cpu": 102.2, "cpuLag": 101.0, "cpuRoll": 101.7, "mem": 42.7, "memLag": 41.8, "cores": 8, "capacity": 16000, "vol": 3.0},
 }
 
-# Real numbers from the Final Report (Tables 5 and 9) -- used for the KPI
-# cards, risk-tier bar, RMSE chart, and detection chart, which are the same
-# regardless of which model/horizon is selected in Live Prediction below.
+# Evaluation values are synchronized with the executed analysis notebook and
+# Final Report Tables 5-7. Detection values use the primary episode-level
+# evaluation; the watchlist profiles below remain explicitly illustrative.
 REAL_RMSE_CPU = {
-    "5 min":  {"Persistence": 6.32, "Linear Regression": 6.14, "Random Forest": 5.10, "XGBoost": 5.12},
-    "15 min": {"Persistence": 11.22, "Linear Regression": 10.81, "Random Forest": 9.55, "XGBoost": 9.59},
-    "30 min": {"Persistence": 14.67, "Linear Regression": 13.86, "Random Forest": 12.42, "XGBoost": 12.61},
+    "5 min":  {"Persistence": 6.3199, "Linear Regression": 6.1370, "Random Forest": 5.0691, "XGBoost": 5.0932},
+    "15 min": {"Persistence": 11.2154, "Linear Regression": 10.8109, "Random Forest": 9.6263, "XGBoost": 9.6797},
+    "30 min": {"Persistence": 14.6661, "Linear Regression": 13.8574, "Random Forest": 12.5011, "XGBoost": 12.6568},
 }
 REAL_DETECTION = {
-    "CPU 5min": {"precision": 96.7, "recall": 94.1}, "CPU 15min": {"precision": 93.7, "recall": 83.7},
-    "CPU 30min": {"precision": 91.4, "recall": 74.5}, "Mem 5min": {"precision": 74.4, "recall": 9.4},
-    "Mem 15min": {"precision": 0, "recall": 0}, "Mem 30min": {"precision": 0, "recall": 0},
+    "CPU 5min": {"precision": 27.10, "recall": 20.54}, "CPU 15min": {"precision": 1.90, "recall": 1.27},
+    "CPU 30min": {"precision": 1.22, "recall": 0.68}, "Mem 5min": {"precision": 32.60, "recall": 6.22},
+    "Mem 15min": {"precision": 0.0, "recall": 0.0}, "Mem 30min": {"precision": 0.0, "recall": 0.0},
 }
-RISK_TIERS = {"Critical": 36, "High": 19, "Normal": 175, "Rightsizing candidate": 267}
+RISK_TIERS = {"Critical": 33, "High": 17, "Normal": 188, "Rightsizing candidate": 259}
 WATCHLIST = [
     ("VM 250", 102.8, 24.3), ("VM 267", 102.2, 42.7), ("VM 211", 102.0, 27.9),
     ("VM 226", 101.7, 25.9), ("VM 224", 101.7, 30.5), ("VM 227", 101.5, 25.4),
@@ -143,7 +143,7 @@ st.title("Predictive Resource Optimization — Decision Dashboard")
 st.caption("AI-Driven Predictive Resource Optimization for On-Premises Virtualized Enterprise Data Centers (QM640 Capstone)")
 
 st.info(
-    "**Data note:** KPI cards, risk tiers, RMSE chart, and detection chart use the real metrics "
+    "**Data note:** KPI cards, risk tiers, RMSE chart, and episode-level detection chart use the verified metrics "
     "reported in the Final Report (Random Forest vs. baselines on the actual Bitbrains-derived "
     "evaluation). The **Live Prediction** panel is different: it calls your actual trained Random "
     "Forest model, loaded live from the Hugging Face Model Hub, and runs genuine inference."
@@ -156,8 +156,8 @@ k1, k2, k3, k4 = st.columns(4)
 for col, label, value, cls in [
     (k1, "VMs scored", "497", ""),
     (k2, "Best model", "Random Forest", ""),
-    (k3, "RMSE vs baseline", "-10 to -41%", "risk-success"),
-    (k4, "Critical VMs now", "36", "risk-critical"),
+    (k3, "RMSE vs baseline", "-10 to -39%", "risk-success"),
+    (k4, "Critical VMs now", "33", "risk-critical"),
 ]:
     col.markdown(
         f'<div class="kpi-card"><p class="kpi-label">{label}</p>'
@@ -201,7 +201,7 @@ st.plotly_chart(rmse_fig, use_container_width=True)
 # =========================================================================
 # Bottleneck detection chart
 # =========================================================================
-st.markdown('<p class="section-label">Bottleneck detection: CPU vs memory (Random Forest, 80% threshold)</p>', unsafe_allow_html=True)
+st.markdown('<p class="section-label">Episode-level bottleneck detection: CPU vs memory (Random Forest, 80% threshold)</p>', unsafe_allow_html=True)
 det_fig = go.Figure()
 det_labels = list(REAL_DETECTION.keys())
 det_fig.add_trace(go.Bar(x=det_labels, y=[REAL_DETECTION[k]["precision"] for k in det_labels], name="Precision", marker_color="#2a78d6"))
@@ -260,7 +260,7 @@ with st.container(border=True):
 # =========================================================================
 # Watchlist table
 # =========================================================================
-st.markdown('<p class="section-label">Top watchlist — highest predicted CPU, next 30 minutes</p>', unsafe_allow_html=True)
+st.markdown('<p class="section-label">Illustrative watchlist profiles — next 30 minutes</p>', unsafe_allow_html=True)
 watchlist_df = pd.DataFrame(WATCHLIST, columns=["VM ID", "Predicted CPU", "Predicted memory"])
 watchlist_df["Predicted CPU"] = watchlist_df["Predicted CPU"].map(lambda v: f"{v:.1f}%")
 watchlist_df["Predicted memory"] = watchlist_df["Predicted memory"].map(lambda v: f"{v:.1f}%")
@@ -269,6 +269,6 @@ st.dataframe(watchlist_df, use_container_width=True, hide_index=True)
 
 st.divider()
 st.caption(
-    "Source: QM640 Final Report (Results section, Tables 5 and 9) and the executed capstone "
+    "Source: QM640 Final Report (Results section, Tables 5-7) and the executed capstone "
     "notebook's decision-support output. Live Prediction calls your real model on Hugging Face."
 )

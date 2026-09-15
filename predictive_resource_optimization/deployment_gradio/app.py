@@ -49,20 +49,20 @@ VM_PROFILES = {
     "VM 267 (critical)": {"cpu": 102.2, "cpuLag": 101.0, "cpuRoll": 101.7, "mem": 42.7, "memLag": 41.8, "cores": 8, "capacity": 16000, "vol": 3.0},
 }
 
-# Real numbers from the Final Report (Tables 5 and 9) -- used for the KPI
-# cards, risk-tier bar, RMSE chart, and detection chart, which are the same
-# regardless of which model/horizon is selected in Live Prediction below.
+# Evaluation values are synchronized with the executed analysis notebook and
+# Final Report Tables 5-7. Detection values use the primary episode-level
+# evaluation; the watchlist profiles below remain explicitly illustrative.
 REAL_RMSE_CPU = {
-    "5 min":  {"Persistence": 6.32, "Linear Regression": 6.14, "Random Forest": 5.10, "XGBoost": 5.12},
-    "15 min": {"Persistence": 11.22, "Linear Regression": 10.81, "Random Forest": 9.55, "XGBoost": 9.59},
-    "30 min": {"Persistence": 14.67, "Linear Regression": 13.86, "Random Forest": 12.42, "XGBoost": 12.61},
+    "5 min":  {"Persistence": 6.3199, "Linear Regression": 6.1370, "Random Forest": 5.0691, "XGBoost": 5.0932},
+    "15 min": {"Persistence": 11.2154, "Linear Regression": 10.8109, "Random Forest": 9.6263, "XGBoost": 9.6797},
+    "30 min": {"Persistence": 14.6661, "Linear Regression": 13.8574, "Random Forest": 12.5011, "XGBoost": 12.6568},
 }
 REAL_DETECTION = {
-    "CPU 5min": {"precision": 96.7, "recall": 94.1}, "CPU 15min": {"precision": 93.7, "recall": 83.7},
-    "CPU 30min": {"precision": 91.4, "recall": 74.5}, "Mem 5min": {"precision": 74.4, "recall": 9.4},
-    "Mem 15min": {"precision": 0, "recall": 0}, "Mem 30min": {"precision": 0, "recall": 0},
+    "CPU 5min": {"precision": 27.10, "recall": 20.54}, "CPU 15min": {"precision": 1.90, "recall": 1.27},
+    "CPU 30min": {"precision": 1.22, "recall": 0.68}, "Mem 5min": {"precision": 32.60, "recall": 6.22},
+    "Mem 15min": {"precision": 0.0, "recall": 0.0}, "Mem 30min": {"precision": 0.0, "recall": 0.0},
 }
-RISK_TIERS = {"Critical": 36, "High": 19, "Normal": 175, "Rightsizing candidate": 267}
+RISK_TIERS = {"Critical": 33, "High": 17, "Normal": 188, "Rightsizing candidate": 259}
 WATCHLIST = [
     ("VM 250", 102.8, 24.3), ("VM 267", 102.2, 42.7), ("VM 211", 102.0, 27.9),
     ("VM 226", 101.7, 25.9), ("VM 224", 101.7, 30.5), ("VM 227", 101.5, 25.4),
@@ -246,7 +246,7 @@ with gr.Blocks(title="Predictive Resource Optimization — Decision Dashboard") 
         "Centers (QM640 Capstone)"
     )
     gr.Markdown(
-        "**Data note:** KPI cards, risk tiers, RMSE chart, and detection chart use the real metrics "
+        "**Data note:** KPI cards, risk tiers, RMSE chart, and episode-level detection chart use the verified metrics "
         "reported in the Final Report (Random Forest vs. baselines on the actual Bitbrains-derived "
         "evaluation). The **Live Prediction** panel is different: it downloads your actual trained "
         "Random Forest model from the Hugging Face Model Hub and runs genuine inference, right here "
@@ -256,8 +256,8 @@ with gr.Blocks(title="Predictive Resource Optimization — Decision Dashboard") 
     with gr.Row():
         gr.Markdown("**VMs scored**\n\n## 497")
         gr.Markdown("**Best model**\n\n## Random Forest")
-        gr.Markdown("**RMSE vs baseline**\n\n## -10 to -41%")
-        gr.Markdown("**Critical VMs now**\n\n## 36")
+        gr.Markdown("**RMSE vs baseline**\n\n## -10 to -39%")
+        gr.Markdown("**Critical VMs now**\n\n## 33")
 
     gr.Markdown("#### VM risk tiers — 30-minute forecast")
     gr.Plot(value=make_risk_tier_fig(), show_label=False)
@@ -265,7 +265,7 @@ with gr.Blocks(title="Predictive Resource Optimization — Decision Dashboard") 
     gr.Markdown("#### Model RMSE by forecast horizon — CPU")
     gr.Plot(value=make_rmse_fig(), show_label=False)
 
-    gr.Markdown("#### Bottleneck detection: CPU vs memory (Random Forest, 80% threshold)")
+    gr.Markdown("#### Episode-level bottleneck detection: CPU vs memory (Random Forest, 80% threshold)")
     gr.Plot(value=make_detection_fig(), show_label=False)
 
     gr.Markdown("---")
@@ -288,11 +288,11 @@ with gr.Blocks(title="Predictive Resource Optimization — Decision Dashboard") 
     )
 
     gr.Markdown("---")
-    gr.Markdown("#### Top watchlist — highest predicted CPU, next 30 minutes")
+    gr.Markdown("#### Illustrative watchlist profiles — next 30 minutes")
     gr.Dataframe(value=build_watchlist_df(), interactive=False)
 
     gr.Markdown(
-        "Source: QM640 Final Report (Results section, Tables 5 and 9) and the executed capstone "
+        "Source: QM640 Final Report (Results section, Tables 5-7) and the executed capstone "
         "notebook's decision-support output. Live Prediction calls your real model and runs genuine "
         "inference on this Space."
     )
