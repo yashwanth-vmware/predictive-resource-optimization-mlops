@@ -1,0 +1,55 @@
+name: Auto Merge dev → main
+
+on:
+  workflow_run:
+    workflows: ["Predictive Resource Optimization MLOps Pipeline"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: auto-merge-dev-main
+  cancel-in-progress: true
+
+jobs:
+  merge_dev_into_main:
+    name: Merge dev into main
+    runs-on: ubuntu-latest
+    if: >
+      ${{
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'dev'
+      }}
+    steps:
+      - name: Checkout main (full history)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      - name: Fetch dev
+        run: |
+          git fetch origin dev:refs/remotes/origin/dev
+      - name: Merge dev into main (ff-only first, else merge commit)
+        run: |
+          set -e
+          if git merge --ff-only origin/dev; then
+            echo "Fast-forward merge completed."
+          else
+            echo "Fast-forward not possible. Trying normal merge commit..."
+            if git merge origin/dev --no-edit; then
+              echo "Merge commit completed."
+            else
+              echo "Merge conflict occurred."
+              echo "Fix: Create a PR from dev to main and resolve conflicts manually."
+              git status
+              exit 1
+            fi
+          fi
+      - name: Push updated main
+        run: |
+          git push origin main
