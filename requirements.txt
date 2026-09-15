@@ -1,0 +1,15 @@
+# Core data & ML
+pandas>=2.0.0
+numpy>=1.24.0
+scikit-learn>=1.3.0
+joblib>=1.3.0
+
+# Hugging Face integration
+huggingface_hub>=0.23.0
+datasets>=2.18.0
+
+# Experiment tracking
+mlflow>=3.0.0
+
+# Networking / utilities
+requests>=2.31.0
